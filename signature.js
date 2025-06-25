@@ -16,7 +16,8 @@ async function loadWasm() {
         const mem = new Uint8Array(wasmInstance.exports.memory.buffer);
         mem.copyWithin(dest, src, src + num);
       },
-      setTempRet0: function () {}, // some builds need this
+      emscripten_resize_heap: () => false, // safely return false to prevent heap resize
+      setTempRet0: () => {}, // safe no-op
     }
   };
 
