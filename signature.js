@@ -9,13 +9,19 @@ async function loadWasm() {
   const wasmPath = path.resolve(__dirname, 'signature.wasm');
   const wasmBuffer = fs.readFileSync(wasmPath);
 
-  const instance = await WebAssembly.instantiate(wasmBuffer, {
+  const importObject = {
     env: {
       abort: () => console.error("WASM aborted"),
+      emscripten_memcpy_big: function(dest, src, num) {
+        const mem = new Uint8Array(wasmInstance.exports.memory.buffer);
+        mem.copyWithin(dest, src, src + num);
+      },
+      setTempRet0: function () {}, // some builds need this
     }
-  });
+  };
 
-  wasmInstance = instance.instance;
+  const result = await WebAssembly.instantiate(wasmBuffer, importObject);
+  wasmInstance = result.instance;
   return wasmInstance;
 }
 
