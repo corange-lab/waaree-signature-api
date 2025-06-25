@@ -1,35 +1,19 @@
 const express = require('express');
-const { generateSignature, listExportedFunctions } = require('./signature');
+const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.get('/', (req, res) => {
-  res.send('✅ Waaree Signature API is running. Use /generate-signature');
+  res.send('✅ Waaree Signature API is running.');
 });
 
-app.get('/generate-signature', async (req, res) => {
-  const { stationID, timestamp, timezone = 'Asia/Calcutta' } = req.query;
-
-  if (!stationID || !timestamp) {
-    return res.status(400).json({ error: 'Missing stationID or timestamp' });
-  }
-
+app.get('/signature', (req, res) => {
   try {
-    const signature = await generateSignature(stationID, timestamp, timezone);
-    res.json({ signature, timestamp, stationID });
-  } catch (err) {
-    console.error('Signature generation error:', err);
-    res.status(500).json({ error: 'Failed to generate signature' });
-  }
-});
-
-// Debug route to check what’s inside the wasm
-app.get('/debug-wasm', async (req, res) => {
-  try {
-    const exports = await listExportedFunctions();
-    res.json({ exportedFunctions: exports });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const json = fs.readFileSync('./signature.json', 'utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.json(JSON.parse(json));
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read signature' });
   }
 });
 
