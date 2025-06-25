@@ -1,50 +1,33 @@
 const fs = require('fs');
 const path = require('path');
 
-// Load and instantiate the WASM file
+let wasmInstance = null;
+
 async function loadWasm() {
+  if (wasmInstance) return wasmInstance;
+
   const wasmPath = path.resolve(__dirname, 'signature.wasm');
   const wasmBuffer = fs.readFileSync(wasmPath);
 
-  const wasmModule = await WebAssembly.instantiate(wasmBuffer, {
+  const instance = await WebAssembly.instantiate(wasmBuffer, {
     env: {
-      abort: () => console.log("WASM aborted"),
+      abort: () => console.error("WASM aborted")
     }
   });
 
-  return wasmModule.instance;
+  wasmInstance = instance.instance;
+  return wasmInstance;
 }
 
-// Convert string to WASM memory and return pointer
 function writeStringToMemory(str, memory, allocFn) {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(str + '\0');
   const ptr = allocFn(bytes.length);
-  const memoryView = new Uint8Array(memory.buffer, ptr, bytes.length);
-  memoryView.set(bytes);
+  const view = new Uint8Array(memory.buffer, ptr, bytes.length);
+  view.set(bytes);
   return ptr;
 }
 
-// Main signature generation function
-async function generateSignature(stationID, timestamp, timezone) {
-  const instance = await loadWasm();
-  const { memory, begin_signature, end_signature, stackAlloc } = instance.exports;
-
-  // Convert inputs into WASM memory
-  const stationPtr = writeStringToMemory(stationID, memory, stackAlloc);
-  const timePtr = writeStringToMemory(timestamp, memory, stackAlloc);
-  const tzPtr = writeStringToMemory(timezone, memory, stackAlloc);
-
-  // Call WASM logic
-  begin_signature(stationPtr, timePtr, tzPtr);
-  const sigPtr = end_signature();
-
-  // Read signature string from memory
-  const signature = readWasmString(memory, sigPtr);
-  return signature;
-}
-
-// Helper to decode null-terminated string
 function readWasmString(memory, ptr) {
   const view = new Uint8Array(memory.buffer);
   let str = '';
@@ -55,6 +38,26 @@ function readWasmString(memory, ptr) {
   return str;
 }
 
-module.exports = {
-  generateSignature
-};
+async function generateSignature(stationID, timestamp, timezone) {
+  const { exports } = await loadWasm();
+
+  const memory = exports.memory;
+  const stackAlloc = exports.stackAlloc;
+  const begin = exports.begin_signature;
+  const end = exports.end_signature;
+
+  // Write strings to WASM memory
+  const stationPtr = writeStringToMemory(stationID, memory, stackAlloc);
+  const timestampPtr = writeStringToMemory(timestamp, memory, stackAlloc);
+  const timezonePtr = writeStringToMemory(timezone, memory, stackAlloc);
+
+  // Call WASM functions
+  begin(stationPtr, timestampPtr, timezonePtr);
+  const resultPtr = end();
+
+  // Read back result string
+  const signature = readWasmString(memory, resultPtr);
+  return signature;
+}
+
+module.exports = { generateSignature };

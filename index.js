@@ -1,13 +1,13 @@
 const express = require('express');
+const { generateSignature } = require('./signature');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ✅ Root route to confirm app is live
 app.get('/', (req, res) => {
   res.send('✅ Waaree Signature API is running. Use /generate-signature');
 });
 
-// ✅ Signature generation route (mocked)
 app.get('/generate-signature', async (req, res) => {
   const { stationID, timestamp, timezone = 'Asia/Calcutta' } = req.query;
 
@@ -15,16 +15,15 @@ app.get('/generate-signature', async (req, res) => {
     return res.status(400).json({ error: 'Missing stationID or timestamp' });
   }
 
-  // ⛔ Replace this mocked value with actual WASM logic later
-  const mockedSignature = `mocked-${stationID.slice(0, 5)}-${timestamp.slice(-5)}`;
-
-  res.json({
-    signature: mockedSignature,
-    timestamp,
-    stationID
-  });
+  try {
+    const signature = await generateSignature(stationID, timestamp, timezone);
+    res.json({ signature, timestamp, stationID });
+  } catch (err) {
+    console.error('Signature generation error:', err);
+    res.status(500).json({ error: 'Failed to generate signature' });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
