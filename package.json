@@ -1,7 +1,7 @@
 {
   "name": "waaree-signature-api",
   "version": "1.0.0",
-  "description": "Signature generator API for Waaree solar system",
+  "description": "Signature generator for Waaree portal",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"

@@ -1,6 +1,5 @@
 const express = require('express');
-const { generateSignature } = require('./signature');
-
+const { generateSignature, listExportedFunctions } = require('./signature');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -21,6 +20,16 @@ app.get('/generate-signature', async (req, res) => {
   } catch (err) {
     console.error('Signature generation error:', err);
     res.status(500).json({ error: 'Failed to generate signature' });
+  }
+});
+
+// Debug route to check what’s inside the wasm
+app.get('/debug-wasm', async (req, res) => {
+  try {
+    const exports = await listExportedFunctions();
+    res.json({ exportedFunctions: exports });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

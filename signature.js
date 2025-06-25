@@ -11,7 +11,7 @@ async function loadWasm() {
 
   const instance = await WebAssembly.instantiate(wasmBuffer, {
     env: {
-      abort: () => console.error("WASM aborted")
+      abort: () => console.error("WASM aborted"),
     }
   });
 
@@ -41,23 +41,29 @@ function readWasmString(memory, ptr) {
 async function generateSignature(stationID, timestamp, timezone) {
   const { exports } = await loadWasm();
 
+  if (!exports.begin_signature || !exports.end_signature || !exports.stackAlloc || !exports.memory) {
+    throw new Error("Required exports not found in WASM");
+  }
+
   const memory = exports.memory;
-  const stackAlloc = exports.stackAlloc;
-  const begin = exports.begin_signature;
-  const end = exports.end_signature;
+  const alloc = exports.stackAlloc;
 
-  // Write strings to WASM memory
-  const stationPtr = writeStringToMemory(stationID, memory, stackAlloc);
-  const timestampPtr = writeStringToMemory(timestamp, memory, stackAlloc);
-  const timezonePtr = writeStringToMemory(timezone, memory, stackAlloc);
+  const stationPtr = writeStringToMemory(stationID, memory, alloc);
+  const timestampPtr = writeStringToMemory(timestamp, memory, alloc);
+  const timezonePtr = writeStringToMemory(timezone, memory, alloc);
 
-  // Call WASM functions
-  begin(stationPtr, timestampPtr, timezonePtr);
-  const resultPtr = end();
+  exports.begin_signature(stationPtr, timestampPtr, timezonePtr);
+  const sigPtr = exports.end_signature();
 
-  // Read back result string
-  const signature = readWasmString(memory, resultPtr);
-  return signature;
+  return readWasmString(memory, sigPtr);
 }
 
-module.exports = { generateSignature };
+async function listExportedFunctions() {
+  const { exports } = await loadWasm();
+  return Object.keys(exports);
+}
+
+module.exports = {
+  generateSignature,
+  listExportedFunctions
+};
