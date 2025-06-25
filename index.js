@@ -1,21 +1,30 @@
 const express = require('express');
-const { generateSignature } = require('./signature');
 const app = express();
+const PORT = process.env.PORT || 3000;
 
-app.get('/generate-signature', async (req, res) => {
-  const { stationID, timestamp, timezone = 'Asia/Calcutta' } = req.query;
-  if (!stationID || !timestamp) {
-    return res.status(400).json({ error: 'Missing required params' });
-  }
-
-  try {
-    const signature = await generateSignature(stationID, timestamp, timezone);
-    res.json({ signature, timestamp, stationID });
-  } catch (err) {
-    console.error('Error:', err);
-    res.status(500).json({ error: 'Signature generation failed' });
-  }
+// ✅ Root route to confirm app is live
+app.get('/', (req, res) => {
+  res.send('✅ Waaree Signature API is running. Use /generate-signature');
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+// ✅ Signature generation route (mocked)
+app.get('/generate-signature', async (req, res) => {
+  const { stationID, timestamp, timezone = 'Asia/Calcutta' } = req.query;
+
+  if (!stationID || !timestamp) {
+    return res.status(400).json({ error: 'Missing stationID or timestamp' });
+  }
+
+  // ⛔ Replace this mocked value with actual WASM logic later
+  const mockedSignature = `mocked-${stationID.slice(0, 5)}-${timestamp.slice(-5)}`;
+
+  res.json({
+    signature: mockedSignature,
+    timestamp,
+    stationID
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
